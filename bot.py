@@ -2,7 +2,7 @@
 import telebot
 import os
 
-TOKEN = os.getenv("8654904952:AAHUiaqZAwCNeZvALoR3igccGjyaMR8u67A")
+TOKEN = os.getenv("TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 balance = 0
