@@ -1,110 +1,150 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder,CommandHandler,ContextTypes
 
-from database import add_transaction, get_transactions, get_balance
-from ai_analysis import analyze_finance
-from export_excel import export_excel
-from config import BOT_TOKEN
+from config import TOKEN,OWNER_ID
+from models import init_db
 
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    text = """
-💰 MONEY AI ABSOLUTE GOD
-
-/add jumlah catatan
-/income jumlah catatan
-/history
-/balance
-/report
-/analyze
-/chart
-
-Contoh:
-/add 20000 makan ayam
-"""
-
-    await update.message.reply_text(text)
+from services.finance_service import add_transaction,get_transactions
+from services.category_service import detect_category
+from services.chart_service import category_chart
+from services.export_service import export_excel
+from services.ai_service import analyze
+from services.prediction_service import predict_expense
 
 
-async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def is_owner(user):
 
-    user = update.message.from_user.id
+    return user == OWNER_ID
 
-    amount = int(context.args[0])
-    note = " ".join(context.args[1:])
 
-    category = auto_category(note)
+async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
 
-    add_transaction(user,"expense",amount,category,note)
+    if not is_owner(update.effective_user.id):
+        return
 
     await update.message.reply_text(
-        f"✅ Pengeluaran tercatat\nKategori: {category}"
-    )
+"""
+PERSONAL FINANCE AI
+
+/in jumlah note
+/out jumlah note
+
+/summary
+/chart
+/export
+/ai
+/predict
+"""
+)
 
 
-async def income(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def income(update,context):
 
-    user = update.message.from_user.id
+    if not is_owner(update.effective_user.id):
+        return
 
-    amount = int(context.args[0])
-    note = " ".join(context.args[1:])
+    amount=int(context.args[0])
 
-    category = auto_category(note)
+    note=" ".join(context.args[1:])
 
-    add_transaction(user,"income",amount,category,note)
+    cat=detect_category(note)
 
-    await update.message.reply_text("💰 Pemasukan tercatat")
+    add_transaction("income",amount,cat,note)
+
+    await update.message.reply_text("income saved")
 
 
-async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def expense(update,context):
 
-    user = update.message.from_user.id
+    if not is_owner(update.effective_user.id):
+        return
 
-    data = get_transactions(user)
+    amount=int(context.args[0])
 
-    text = "📊 Riwayat\n\n"
+    note=" ".join(context.args[1:])
+
+    cat=detect_category(note)
+
+    add_transaction("expense",amount,cat,note)
+
+    await update.message.reply_text("expense saved")
+
+
+async def summary(update,context):
+
+    data=get_transactions()
+
+    inc=0
+    exp=0
 
     for d in data:
-        text += f"{d[4]} | {d[0]} | {d[1]} | {d[3]}\n"
 
-    await update.message.reply_text(text)
+        if d[1]=="income":
+            inc+=d[2]
+
+        if d[1]=="expense":
+            exp+=d[2]
+
+    await update.message.reply_text(
+f"""
+SUMMARY
+
+Income : {inc}
+
+Expense : {exp}
+
+Balance : {inc-exp}
+"""
+)
 
 
-async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def chart(update,context):
 
-    user = update.message.from_user.id
+    file=category_chart()
 
-    bal = get_balance(user)
-
-    await update.message.reply_text(f"💰 Saldo kamu: {bal}")
+    await update.message.reply_photo(open(file,"rb"))
 
 
-async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def export(update,context):
 
-    user = update.message.from_user.id
-
-    file = export_excel(user)
+    file=export_excel()
 
     await update.message.reply_document(open(file,"rb"))
 
 
-async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def ai(update,context):
 
-    user = update.message.from_user.id
+    text=analyze()
 
-    report = analyze_finance(user)
+    await update.message.reply_text(text)
 
-    await update.message.reply_text(report)
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+async def predict(update,context):
 
-app.add_handler(CommandHandler("start",start))
-app.add_handler(CommandHandler("add",add))
-app.add_handler(CommandHandler("income",income))
-app.add_handler(CommandHandler("history",history))
-app.add_handler(CommandHandler("balance",balance))
-app.add_handler(CommandHandler("report",report))
-app.add_handler(CommandHandler("analyze", analyze))
+    p=predict_expense()
 
-app.run_polling()
+    await update.message.reply_text(
+        f"Predicted expense next day : {p}"
+    )
+
+
+def main():
+
+    init_db()
+
+    app=ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start",start))
+    app.add_handler(CommandHandler("in",income))
+    app.add_handler(CommandHandler("out",expense))
+    app.add_handler(CommandHandler("summary",summary))
+    app.add_handler(CommandHandler("chart",chart))
+    app.add_handler(CommandHandler("export",export))
+    app.add_handler(CommandHandler("ai",ai))
+    app.add_handler(CommandHandler("predict",predict))
+
+    app.run_polling()
+
+
+if __name__=="__main__":
+    main()
