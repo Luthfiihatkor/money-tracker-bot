@@ -1,3 +1,10 @@
-pyTelegramBotAPI
+python-telegram-bot==20.7
+pandas
+numpy
+matplotlib
 openpyxl
-schedule
+flask
+psycopg2-binary
+scikit-learn
+apscheduler
+python-dotenv
