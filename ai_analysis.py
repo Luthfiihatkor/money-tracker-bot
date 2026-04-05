@@ -1,16 +1,17 @@
-from database import c
+def auto_category(text):
 
-def analyze(user):
+    text = text.lower()
 
-    c.execute("SELECT kategori,SUM(jumlah) FROM transaksi WHERE user=? AND tipe='out' GROUP BY kategori",(user,))
-    data=c.fetchall()
+    if "makan" in text or "food" in text:
+        return "food"
 
-    text="🧠 Analisa Keuangan\n\n"
+    if "bensin" in text or "transport" in text:
+        return "transport"
 
-    if not data:
-        return "Belum ada data."
+    if "game" in text or "steam" in text:
+        return "entertainment"
 
-    for d in data:
-        text+=f"{d[0]} : {d[1]}\n"
+    if "gaji" in text:
+        return "income"
 
-    return text
+    return "other"
