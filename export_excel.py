@@ -1,20 +1,15 @@
-import openpyxl
-from database import c
+import pandas as pd
+from database import get_transactions
 
-def export(user):
 
-    wb=openpyxl.Workbook()
-    ws=wb.active
+def export_excel(user_id):
 
-    ws.append(["Tanggal","Tipe","Kategori","Jumlah","Wallet","Note"])
+    data = get_transactions(user_id)
 
-    c.execute("SELECT tanggal,tipe,kategori,jumlah,wallet,note FROM transaksi WHERE user=?",(user,))
-    data=c.fetchall()
+    df = pd.DataFrame(data, columns=["type","amount","category","note","date"])
 
-    for d in data:
-        ws.append(d)
+    file = "report.xlsx"
 
-    file="report.xlsx"
-    wb.save(file)
+    df.to_excel(file, index=False)
 
     return file
