@@ -1,12 +1,13 @@
 import telebot
 import re
-import os
 from datetime import datetime
+
+from config import TOKEN
 from database import conn,c
+from ai_analysis import analyze
+from export_excel import export
 
-TOKEN = os.getenv("TOKEN")
-
-bot = telebot.TeleBot(TOKEN)
+bot=telebot.TeleBot(TOKEN)
 
 
 def saldo(user):
@@ -25,31 +26,47 @@ def saldo(user):
 def start(m):
 
     bot.reply_to(m,"""
-👑 PERSONAL FINANCE OS
+👑 PERSONAL MONEY AI
 
-Contoh:
+contoh:
 
 beli kopi 15000
 makan 20000
 jual belut 500000
 
-Commands:
+commands
 
 /saldo
-/stat
 /history
 /analysis
+/export
 """)
 
 
 @bot.message_handler(commands=['saldo'])
-def saldo_cmd(m):
+def s(m):
 
     bot.reply_to(m,f"💰 Saldo : {saldo(m.from_user.id)}")
 
 
 
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(commands=['analysis'])
+def a(m):
+
+    bot.reply_to(m,analyze(m.from_user.id))
+
+
+
+@bot.message_handler(commands=['export'])
+def ex(m):
+
+    file=export(m.from_user.id)
+
+    bot.send_document(m.chat.id,open(file,"rb"))
+
+
+
+@bot.message_handler(func=lambda m:True)
 def catat(m):
 
     text=m.text.lower()
@@ -74,5 +91,7 @@ def catat(m):
 
     bot.reply_to(m,"✅ transaksi dicatat")
 
+
+print("BOT AKTIF")
 
 bot.infinity_polling()
