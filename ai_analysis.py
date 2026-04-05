@@ -1,17 +1,50 @@
-def auto_category(text):
+from database import get_transactions
 
-    text = text.lower()
+def analyze_finance(user_id):
 
-    if "makan" in text or "food" in text:
-        return "food"
+    data = get_transactions(user_id)
 
-    if "bensin" in text or "transport" in text:
-        return "transport"
+    total_income = 0
+    total_expense = 0
 
-    if "game" in text or "steam" in text:
-        return "entertainment"
+    categories = {}
 
-    if "gaji" in text:
-        return "income"
+    for d in data:
 
-    return "other"
+        tipe = d[0]
+        amount = d[1]
+        category = d[2]
+
+        if tipe == "income":
+            total_income += amount
+        else:
+            total_expense += amount
+
+        if category not in categories:
+            categories[category] = 0
+
+        categories[category] += amount
+
+    balance = total_income - total_expense
+
+    biggest = max(categories, key=categories.get)
+
+    report = f"""
+📊 ANALISIS KEUANGAN
+
+💰 Total Income : {total_income}
+💸 Total Expense : {total_expense}
+🏦 Balance : {balance}
+
+🔥 Pengeluaran terbesar:
+{biggest}
+
+"""
+
+    if total_expense > total_income:
+        report += "\n⚠️ Kamu lebih banyak mengeluarkan uang daripada pemasukan."
+
+    if categories.get("food",0) > total_expense*0.4:
+        report += "\n🍔 Pengeluaran makan cukup tinggi."
+
+    return report
