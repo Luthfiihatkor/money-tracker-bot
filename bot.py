@@ -1,97 +1,96 @@
-import telebot
-import re
-from datetime import datetime
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-from config import TOKEN
-from database import conn,c
-from ai_analysis import analyze
-from export_excel import export
-
-bot=telebot.TeleBot(TOKEN)
+from database import add_transaction, get_transactions, get_balance
+from ai_analysis import auto_category
+from export_excel import export_excel
+from config import BOT_TOKEN
 
 
-def saldo(user):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    c.execute("SELECT SUM(jumlah) FROM transaksi WHERE user=? AND tipe='in'",(user,))
-    masuk=c.fetchone()[0] or 0
+    text = """
+💰 MONEY GOD SYSTEM
 
-    c.execute("SELECT SUM(jumlah) FROM transaksi WHERE user=? AND tipe='out'",(user,))
-    keluar=c.fetchone()[0] or 0
-
-    return masuk-keluar
-
-
-
-@bot.message_handler(commands=['start'])
-def start(m):
-
-    bot.reply_to(m,"""
-👑 PERSONAL MONEY AI
-
-contoh:
-
-beli kopi 15000
-makan 20000
-jual belut 500000
-
-commands
-
-/saldo
+/add jumlah catatan
+/income jumlah catatan
 /history
-/analysis
-/export
-""")
+/balance
+/report
+"""
+
+    await update.message.reply_text(text)
 
 
-@bot.message_handler(commands=['saldo'])
-def s(m):
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    bot.reply_to(m,f"💰 Saldo : {saldo(m.from_user.id)}")
+    user = update.message.from_user.id
 
+    amount = int(context.args[0])
+    note = " ".join(context.args[1:])
 
+    category = auto_category(note)
 
-@bot.message_handler(commands=['analysis'])
-def a(m):
+    add_transaction(user,"expense",amount,category,note)
 
-    bot.reply_to(m,analyze(m.from_user.id))
-
-
-
-@bot.message_handler(commands=['export'])
-def ex(m):
-
-    file=export(m.from_user.id)
-
-    bot.send_document(m.chat.id,open(file,"rb"))
+    await update.message.reply_text(
+        f"✅ Pengeluaran tercatat\nKategori: {category}"
+    )
 
 
+async def income(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-@bot.message_handler(func=lambda m:True)
-def catat(m):
+    user = update.message.from_user.id
 
-    text=m.text.lower()
+    amount = int(context.args[0])
+    note = " ".join(context.args[1:])
 
-    angka=re.findall(r'\d+',text)
+    category = auto_category(note)
 
-    if not angka:
-        return
+    add_transaction(user,"income",amount,category,note)
 
-    jumlah=int(angka[0])
-
-    if "jual" in text:
-        tipe="in"
-    else:
-        tipe="out"
-
-    c.execute("""
-    INSERT INTO transaksi VALUES(NULL,?,?,?,?,?,?,?)
-    """,(m.from_user.id,tipe,jumlah,"general","cash",text,str(datetime.now().date())))
-
-    conn.commit()
-
-    bot.reply_to(m,"✅ transaksi dicatat")
+    await update.message.reply_text("💰 Pemasukan tercatat")
 
 
-print("BOT AKTIF")
+async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-bot.infinity_polling()
+    user = update.message.from_user.id
+
+    data = get_transactions(user)
+
+    text = "📊 Riwayat\n\n"
+
+    for d in data:
+        text += f"{d[4]} | {d[0]} | {d[1]} | {d[3]}\n"
+
+    await update.message.reply_text(text)
+
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.message.from_user.id
+
+    bal = get_balance(user)
+
+    await update.message.reply_text(f"💰 Saldo kamu: {bal}")
+
+
+async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.message.from_user.id
+
+    file = export_excel(user)
+
+    await update.message.reply_document(open(file,"rb"))
+
+
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+app.add_handler(CommandHandler("start",start))
+app.add_handler(CommandHandler("add",add))
+app.add_handler(CommandHandler("income",income))
+app.add_handler(CommandHandler("history",history))
+app.add_handler(CommandHandler("balance",balance))
+app.add_handler(CommandHandler("report",report))
+
+app.run_polling()
