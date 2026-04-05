@@ -10,13 +10,18 @@ from config import BOT_TOKEN
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = """
-💰 MONEY GOD SYSTEM
+💰 MONEY AI ABSOLUTE GOD
 
 /add jumlah catatan
 /income jumlah catatan
 /history
 /balance
 /report
+/analyze
+/chart
+
+Contoh:
+/add 20000 makan ayam
 """
 
     await update.message.reply_text(text)
