@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 from database import add_transaction, get_transactions, get_balance
-from ai_analysis import auto_category
+from ai_analysis import analyze_finance
 from export_excel import export_excel
 from config import BOT_TOKEN
 
@@ -84,6 +84,14 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_document(open(file,"rb"))
 
 
+async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user = update.message.from_user.id
+
+    report = analyze_finance(user)
+
+    await update.message.reply_text(report)
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 app.add_handler(CommandHandler("start",start))
@@ -92,5 +100,6 @@ app.add_handler(CommandHandler("income",income))
 app.add_handler(CommandHandler("history",history))
 app.add_handler(CommandHandler("balance",balance))
 app.add_handler(CommandHandler("report",report))
+app.add_handler(CommandHandler("analyze", analyze))
 
 app.run_polling()
