@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder,CommandHandler,ContextTypes
 
+from scheduler import start_scheduler
 from config import TOKEN,OWNER_ID
 from models import init_db
 
@@ -143,6 +144,14 @@ def main():
     app.add_handler(CommandHandler("ai",ai))
     app.add_handler(CommandHandler("predict",predict))
 
+def main():
+
+    init_db()
+
+    start_scheduler()
+
+    app = ApplicationBuilder().token(TOKEN).build()
+    
     app.run_polling()
 
 
